@@ -48,10 +48,33 @@ export interface UploadedFile {
 
 // Interface pour la position de signature
 export interface SignaturePosition {
+  /**
+   * Numéro de page où placer la signature (1-indexed)
+   */
   page: number;
+  
+  /**
+   * Position horizontale du centre de la signature en pourcentage de la largeur de la page (0-100%)
+   * Exemple: 50 = centre de la page
+   */
   x: number;
+  
+  /**
+   * Position verticale du centre de la signature en pourcentage de la hauteur de la page (0-100%)
+   * Exemple: 50 = milieu de la page
+   */
   y: number;
+  
+  /**
+   * Largeur de la signature en pourcentage de la largeur de la page (0-100%)
+   * Exemple: 20 = 20% de la largeur de la page
+   */
   width: number;
+  
+  /**
+   * Hauteur de la signature en pourcentage de la hauteur de la page (0-100%)
+   * Exemple: 10 = 10% de la hauteur de la page
+   */
   height: number;
 }
 

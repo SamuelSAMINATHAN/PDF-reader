@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { v4 as uuidv4 } from 'uuid';
 import { UploadedFile } from '../services/api';
 
 interface FileUploaderProps {
@@ -10,6 +11,10 @@ interface FileUploaderProps {
   files: UploadedFile[];
   label?: string;
   description?: string;
+}
+
+export interface FileWithPreview extends UploadedFile {
+  preview?: string;
 }
 
 const FileUploader: React.FC<FileUploaderProps> = ({
@@ -23,186 +28,199 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   label = "Glissez-déposez vos fichiers ici",
   description = "ou cliquez pour sélectionner des fichiers",
 }) => {
-  // Générer des previews pour les fichiers
+  const [filesWithPreview, setFilesWithPreview] = useState<FileWithPreview[]>([]);
+  const [showDropzone, setShowDropzone] = useState<boolean>(true);
+  
   useEffect(() => {
-    // Uniquement pour les PDFs et les images
-    files.forEach(fileObj => {
-      if (!fileObj.preview && fileObj.file.type.includes('image')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          if (e.target?.result) {
-            const updatedFiles = files.map(f => {
-              if (f.id === fileObj.id) {
-                return { ...f, preview: e.target!.result as string };
-              }
-              return f;
-            });
-            onFilesChange(updatedFiles);
-          }
-        };
-        reader.readAsDataURL(fileObj.file);
+    // Convertir les fichiers en fichiers avec aperçu
+    const newFilesWithPreview = files.map(fileObj => {
+      // Vérifier si nous avons déjà ce fichier dans notre état
+      const existingFile = filesWithPreview.find(f => 
+        f.file.name === fileObj.file.name && 
+        f.file.size === fileObj.file.size && 
+        f.file.lastModified === fileObj.file.lastModified
+      );
+      
+      // Si le fichier existe déjà, réutiliser son ID et aperçu
+      if (existingFile) {
+        return existingFile;
       }
-    });
-  }, [files, onFilesChange]);
 
-  // Supprimer les previews quand le composant est démonté
-  useEffect(() => {
+      // Sinon, créer un nouvel objet avec ID et générer un aperçu si c'est une image
+      const fileWithId = { ...fileObj, id: uuidv4() } as FileWithPreview;
+      
+      // Générer un aperçu uniquement pour les images
+      if (fileObj.file.type.startsWith('image/')) {
+        fileWithId.preview = URL.createObjectURL(fileObj.file);
+      }
+      
+      return fileWithId;
+    });
+
+    setFilesWithPreview(newFilesWithPreview);
+    
+    // Masquer la zone de dépôt si des fichiers sont présents
+    setShowDropzone(newFilesWithPreview.length === 0);
+    
+    // Nettoyer les URL d'aperçu lors du démontage
     return () => {
-      files.forEach(file => {
+      filesWithPreview.forEach(file => {
         if (file.preview) {
           URL.revokeObjectURL(file.preview);
         }
       });
     };
-  }, [files]);
+  }, [files, filesWithPreview]);
 
-  // Callback pour l'upload de fichiers
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
-      const newFiles = acceptedFiles.map(file => ({
-        id: Math.random().toString(36).substring(2, 11),
-        file,
-      }));
-      
-      onFilesChange([...files, ...newFiles]);
+      if (acceptedFiles?.length) {
+        // Prendre uniquement les nouveaux fichiers jusqu'à la limite de maxFiles
+        const newFiles = [...files];
+        const remainingSlots = Math.max(0, maxFiles - newFiles.length);
+        
+        if (remainingSlots > 0) {
+          const filesToAdd = acceptedFiles.slice(0, remainingSlots);
+          newFiles.push(...filesToAdd.map(file => ({
+            id: Math.random().toString(36).substring(2, 11),
+            file,
+          })));
+          onFilesChange(newFiles);
+        }
+      }
     },
-    [files, onFilesChange]
+    [files, maxFiles, onFilesChange]
   );
 
-  // Supprimer un fichier
-  const removeFile = (id: string) => {
-    const updatedFiles = files.filter(fileObj => fileObj.id !== id);
+  const removeFile = (fileId: string) => {
+    const updatedFiles = files.filter((_, index) => {
+      return filesWithPreview[index]?.id !== fileId;
+    });
     onFilesChange(updatedFiles);
+    
+    // Afficher à nouveau la zone de dépôt après suppression
+    if (updatedFiles.length === 0) {
+      setShowDropzone(true);
+    }
   };
 
-  // Configuration de react-dropzone
   const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
     onDrop,
     accept,
-    maxFiles: maxFiles - files.length,
     maxSize,
-    multiple: maxFiles > 1,
+    maxFiles,
     disabled: files.length >= maxFiles,
   });
 
+  const fileRejectionItems = fileRejections.map(({ file, errors }) => (
+    <li key={file.name} className="text-sm text-red-500">
+      {file.name} - {errors.map(e => e.message).join(', ')}
+    </li>
+  ));
+
   return (
     <div className="w-full">
-      {files.length === 0 && (
-        <div 
-          {...getRootProps()} 
-          className={`border-2 border-dashed p-8 rounded-lg text-center cursor-pointer transition-colors
-            ${isDragActive 
-              ? 'border-blue-500 bg-blue-50' 
-              : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+      {showDropzone && (
+        <div
+          {...getRootProps()}
+          className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all
+            ${
+              isDragActive
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-300 hover:border-gray-400'
             }
             ${files.length >= maxFiles ? 'opacity-50 cursor-not-allowed' : ''}
           `}
         >
-          <input {...getInputProps()} data-testid="file-input" />
-          <div className="text-center">
+          <input {...getInputProps()} />
+          <div className="space-y-2">
             <svg 
               className="mx-auto h-12 w-12 text-gray-400" 
-              stroke="currentColor" 
               fill="none" 
-              viewBox="0 0 48 48" 
-              aria-hidden="true"
+              viewBox="0 0 24 24" 
+              stroke="currentColor" 
+              strokeWidth={1}
             >
               <path 
-                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" 
-                strokeWidth="2" 
                 strokeLinecap="round" 
                 strokeLinejoin="round" 
+                d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" 
               />
             </svg>
-            <p className="mt-2 text-sm font-medium text-gray-900">{label}</p>
-            <p className="mt-1 text-xs text-gray-500">{description}</p>
+            <p className="text-sm font-medium text-gray-900">{label}</p>
+            <p className="text-xs text-gray-500">{description}</p>
+            {maxSize && (
+              <p className="text-xs text-gray-400">
+                Taille maximum: {(maxSize / 1024 / 1024).toFixed(0)} MB
+              </p>
+            )}
           </div>
         </div>
       )}
 
-      {fileRejections.length > 0 && (
-        <div className="mt-2 text-sm text-red-500">
-          {fileRejections.map(({ file, errors }) => (
-            <div key={file.name} className="mt-1">
-              <span className="font-medium">{file.name}:</span>
-              <ul className="list-disc list-inside">
-                {errors.map(e => (
-                  <li key={e.code}>{e.message}</li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+      {/* Afficher les erreurs de validation */}
+      {fileRejectionItems.length > 0 && (
+        <ul className="mt-2">{fileRejectionItems}</ul>
       )}
 
-      {/* Liste des fichiers */}
-      {files.length > 0 && (
-        <ul className="mt-4 space-y-2">
-          {files.map((fileObj) => (
-            <li 
-              key={fileObj.id} 
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
-            >
-              <div className="flex items-center">
-                {fileObj.preview && fileObj.file.type.includes('image') ? (
-                  <img 
-                    src={fileObj.preview} 
-                    alt={fileObj.file.name}
-                    className="h-10 w-10 object-cover rounded mr-3"
-                  />
-                ) : (
-                  <svg 
-                    className="h-10 w-10 text-gray-400 mr-3" 
-                    fill="currentColor" 
-                    viewBox="0 0 20 20" 
-                  >
-                    <path 
-                      fillRule="evenodd" 
-                      d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" 
-                      clipRule="evenodd" 
+      {/* Afficher les fichiers sélectionnés */}
+      {filesWithPreview.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm text-gray-500 mb-2">
+            {filesWithPreview.length} {filesWithPreview.length === 1 ? 'fichier' : 'fichiers'} sélectionné{filesWithPreview.length > 1 ? 's' : ''}
+          </p>
+          <ul className="space-y-2">
+            {filesWithPreview.map((file) => (
+              <li key={file.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                <div className="flex items-center">
+                  {file.preview ? (
+                    <img
+                      src={file.preview}
+                      alt={file.file.name}
+                      className="h-10 w-10 object-cover rounded mr-2"
+                    />
+                  ) : (
+                    <svg
+                      className="h-10 w-10 text-gray-400 mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                  )}
+                  <div className="truncate max-w-xs">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {file.file.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {(file.file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-red-500 focus:outline-none"
+                  onClick={() => removeFile(file.id)}
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                     />
                   </svg>
-                )}
-                <div className="truncate">
-                  <p className="text-sm font-medium text-gray-900 truncate">{fileObj.file.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {(fileObj.file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => removeFile(fileObj.id)}
-                className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
-                title="Supprimer"
-              >
-                <svg 
-                  className="h-5 w-5" 
-                  fill="currentColor" 
-                  viewBox="0 0 20 20" 
-                >
-                  <path 
-                    fillRule="evenodd" 
-                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" 
-                    clipRule="evenodd" 
-                  />
-                </svg>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      
-      {files.length > 0 && files.length < maxFiles && (
-        <button
-          {...getRootProps()}
-          className="mt-4 flex items-center justify-center w-full py-2 px-4 border border-dashed border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
-        >
-          <input {...getInputProps()} />
-          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Ajouter un autre fichier
-        </button>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

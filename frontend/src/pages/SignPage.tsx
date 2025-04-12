@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { toast } from "react-hot-toast";
 import FileUploader from "../components/FileUploader";
 import PdfViewer from "../components/PdfViewer";
@@ -10,15 +10,14 @@ const SignPage: React.FC = () => {
   const [file, setFile] = useState<FileWithId | null>(null);
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
-  const [totalPages, setTotalPages] = useState<number>(0);
   const [signaturePosition, setSignaturePosition] = useState<SignaturePosition | null>(null);
   const [isPositioning, setIsPositioning] = useState(false);
-  const [resultURL, setResultURL] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<{ x: number, y: number } | null>(null);
 
   // Fonction pour gérer le changement de fichiers
   const handleFilesChange = (newFiles: UploadedFile[]) => {
@@ -33,26 +32,7 @@ const SignPage: React.FC = () => {
     }
   };
 
-  // Gestion des événements de signature
-  const handleClearSignature = () => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-    }
-    setSignatureData(null);
-  };
-
-  const handleSaveSignature = () => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const signatureImage = canvas.toDataURL('image/png');
-      setSignatureData(signatureImage);
-    }
-  };
-
+  // Positionner initialement la signature
   const handlePositionSignature = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!isPositioning || !pdfContainerRef.current) return;
 
@@ -76,8 +56,49 @@ const SignPage: React.FC = () => {
     toast.success(`Signature positionnée sur la page ${pageNumber}`);
   };
 
-  const handleDocumentLoadSuccess = (numPages: number) => {
-    setTotalPages(numPages);
+  // Commencer à déplacer la signature
+  const handleStartDrag = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    setIsDragging(true);
+    
+    // Enregistrer la position initiale du curseur
+    dragStartRef.current = {
+      x: event.clientX,
+      y: event.clientY
+    };
+  };
+
+  // Déplacer la signature
+  const handleDrag = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    
+    if (!isDragging || !signaturePosition || !pdfContainerRef.current || !dragStartRef.current) return;
+    
+    const rect = pdfContainerRef.current.getBoundingClientRect();
+    
+    // Calculer le déplacement en pourcentage de la taille du conteneur
+    const deltaX = ((event.clientX - dragStartRef.current.x) / rect.width) * 100;
+    const deltaY = ((event.clientY - dragStartRef.current.y) / rect.height) * 100;
+    
+    // Mettre à jour la position en ajoutant le déplacement
+    setSignaturePosition({
+      ...signaturePosition,
+      x: signaturePosition.x + deltaX,
+      y: signaturePosition.y + deltaY
+    });
+    
+    // Mettre à jour la position de départ pour le prochain mouvement
+    dragStartRef.current = {
+      x: event.clientX,
+      y: event.clientY
+    };
+  };
+
+  // Terminer le déplacement
+  const handleEndDrag = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    setIsDragging(false);
+    dragStartRef.current = null;
   };
 
   const handleSign = async () => {
@@ -122,7 +143,7 @@ const SignPage: React.FC = () => {
   const toolbarActions = [
     {
       id: 'position',
-      label: signatureData ? 'Positionner la signature' : 'Créez d\'abord une signature',
+      label: signaturePosition ? 'Repositionner la signature' : signatureData ? 'Positionner la signature' : 'Créez d\'abord une signature',
       onClick: () => setIsPositioning(!isPositioning),
       disabled: !signatureData || !file,
     },
@@ -170,6 +191,8 @@ const SignPage: React.FC = () => {
               className={`relative border rounded-lg ${isPositioning ? 'cursor-crosshair border-blue-500' : 'border-gray-200'}`}
               ref={pdfContainerRef}
               onClick={handlePositionSignature}
+              onMouseMove={handleDrag}
+              onMouseUp={handleEndDrag}
             >
               {isPositioning && (
                 <div className="absolute inset-0 bg-blue-50 bg-opacity-30 flex items-center justify-center z-10">
@@ -188,7 +211,7 @@ const SignPage: React.FC = () => {
               
               {signaturePosition && signaturePosition.page === pageNumber && signatureData && (
                 <div 
-                  className="absolute border-2 border-blue-500 bg-white bg-opacity-70 flex items-center justify-center z-10"
+                  className={`absolute border-2 ${isDragging ? 'border-blue-600 cursor-grabbing' : 'border-blue-500 cursor-grab'} bg-white bg-opacity-70 flex items-center justify-center z-10`}
                   style={{
                     left: `${signaturePosition.x}%`,
                     top: `${signaturePosition.y}%`,
@@ -196,11 +219,14 @@ const SignPage: React.FC = () => {
                     height: `${signaturePosition.height}%`,
                     transform: 'translate(-50%, -50%)'
                   }}
+                  onMouseDown={handleStartDrag}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   <img 
                     src={signatureData} 
                     alt="Signature" 
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain pointer-events-none"
+                    draggable={false}
                   />
                 </div>
               )}
@@ -229,6 +255,17 @@ const SignPage: React.FC = () => {
               />
             </div>
           )}
+
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-700">
+            <p>
+              <strong>Astuce :</strong> Pour de meilleurs résultats, vous pouvez :
+            </p>
+            <ul className="list-disc ml-5 mt-2 space-y-1">
+              <li>Dessiner avec votre souris ou écran tactile</li>
+              <li>Importer une image de votre signature</li>
+              <li>Prendre en photo votre signature sur papier</li>
+            </ul>
+          </div>
 
           <div className="mt-6">
             <Toolbar actions={toolbarActions} />

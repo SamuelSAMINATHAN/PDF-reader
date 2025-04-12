@@ -14,9 +14,11 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
   className = '',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
+  const [importedSignature, setImportedSignature] = useState<string | null>(null);
 
   // Initialiser le contexte du canvas
   useEffect(() => {
@@ -57,6 +59,7 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     ctx.strokeStyle = '#000000';
     
     setHasSignature(false);
+    setImportedSignature(null);
   };
 
   // Débuter le dessin
@@ -67,6 +70,12 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
     const ctx = context;
     
     if (!canvas || !ctx) return;
+    
+    // Si une signature a été importée, l'effacer quand on commence à dessiner
+    if (importedSignature) {
+      clearCanvas();
+      setImportedSignature(null);
+    }
     
     let clientX, clientY;
     
@@ -126,12 +135,83 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
 
   // Sauvegarder la signature
   const saveSignature = () => {
+    if (importedSignature) {
+      // Si on a une signature importée, l'utiliser directement
+      onSave(importedSignature);
+      return;
+    }
+    
     const canvas = canvasRef.current;
     if (!canvas || !hasSignature) return;
     
     // Convertir le canvas en données base64
     const signatureData = canvas.toDataURL('image/png');
     onSave(signatureData);
+  };
+
+  // Importer une image de signature
+  const handleImportSignature = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // Gérer le changement de fichier
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Vérifier si le fichier est une image
+    if (!file.type.startsWith('image/')) {
+      alert('Veuillez sélectionner une image');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (typeof event.target?.result === 'string') {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = canvasRef.current;
+          const ctx = context;
+          
+          if (!canvas || !ctx) return;
+          
+          // Effacer le canvas
+          clearCanvas();
+          
+          // Calculer les dimensions pour adapter l'image au canvas
+          const ratio = Math.min(
+            canvas.width / img.width,
+            canvas.height / img.height
+          ) * 0.9; // 90% de la taille pour avoir une marge
+          
+          const newWidth = img.width * ratio;
+          const newHeight = img.height * ratio;
+          
+          // Dessiner l'image au centre du canvas
+          ctx.drawImage(
+            img,
+            (canvas.width - newWidth) / 2,
+            (canvas.height - newHeight) / 2,
+            newWidth,
+            newHeight
+          );
+          
+          // Enregistrer l'image importée
+          setImportedSignature(canvas.toDataURL('image/png'));
+          setHasSignature(true);
+        };
+        img.src = event.target.result;
+      }
+    };
+    
+    reader.readAsDataURL(file);
+    
+    // Réinitialiser l'input file pour permettre de sélectionner à nouveau le même fichier
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   // Empêcher le scroll sur appareil tactile lors du dessin
@@ -166,13 +246,27 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
           onTouchEnd={endDrawing}
         />
       </div>
-      <div className="flex space-x-3">
+      
+      <div className="flex flex-wrap gap-2 w-full justify-center mb-3">
         <button
           onClick={clearCanvas}
           className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md"
         >
           Effacer
         </button>
+        <button
+          onClick={handleImportSignature}
+          className="px-4 py-2 text-sm bg-green-100 hover:bg-green-200 text-green-800 rounded-md"
+        >
+          Importer une signature
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept="image/*"
+          className="hidden"
+        />
         <button
           onClick={saveSignature}
           disabled={!hasSignature}
@@ -184,6 +278,10 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
         >
           Valider
         </button>
+      </div>
+      
+      <div className="w-full text-center text-xs text-gray-500">
+        Dessinez votre signature ou importez une image de signature
       </div>
     </div>
   );

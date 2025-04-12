@@ -243,6 +243,9 @@ def add_signature(
     Ajoute une signature à un PDF
     Soit à partir d'un fichier image (signature_path)
     Soit à partir de données base64 (signature_data)
+    
+    La position est fournie en pourcentage (0-100%) de la taille de la page,
+    avec l'origine au coin supérieur gauche.
     """
     try:
         if not signature_path and not signature_data:
@@ -274,17 +277,28 @@ def add_signature(
             
         page = doc[page_num]
         
-        # Calculer les dimensions et position réelles
+        # Calculer les dimensions et position réelles en points PDF (1/72 inch)
         page_width = page.rect.width
         page_height = page.rect.height
         
-        x = position["x"] * page_width / 100  # Convertir pourcentage en points
-        y = position["y"] * page_height / 100
-        width = position["width"] * page_width / 100
-        height = position["height"] * page_height / 100
+        # Les coordonnées x, y dans la position représentent le centre de la signature
+        # dans l'interface utilisateur, en pourcentage de la taille de page
+        sig_width = position["width"] * page_width / 100
+        sig_height = position["height"] * page_height / 100
+        
+        # Position centrale de la signature (en points)
+        center_x = position["x"] * page_width / 100
+        center_y = position["y"] * page_height / 100
+        
+        # Calculer le rectangle en coordonnées PDF
+        # En tenant compte que le point (x, y) est le centre de la signature
+        x0 = center_x - (sig_width / 2)
+        y0 = center_y - (sig_height / 2)
+        x1 = center_x + (sig_width / 2)
+        y1 = center_y + (sig_height / 2)
         
         # Créer un rectangle pour la position de la signature
-        rect = fitz.Rect(x, y, x + width, y + height)
+        rect = fitz.Rect(x0, y0, x1, y1)
         
         # Insérer l'image
         page.insert_image(rect, stream=img_bytes.getvalue())
