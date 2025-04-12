@@ -87,46 +87,38 @@ const FileUploader: React.FC<FileUploaderProps> = ({
 
   return (
     <div className="w-full">
-      <div 
-        {...getRootProps()} 
-        className={`border-2 border-dashed p-8 rounded-lg text-center cursor-pointer transition-colors
-          ${isDragActive 
-            ? 'border-blue-500 bg-blue-50' 
-            : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
-          }
-          ${files.length >= maxFiles ? 'opacity-50 cursor-not-allowed' : ''}
-        `}
-      >
-        <input {...getInputProps()} data-testid="file-input" />
-        <div className="text-center">
-          <svg 
-            className="mx-auto h-12 w-12 text-gray-400" 
-            stroke="currentColor" 
-            fill="none" 
-            viewBox="0 0 48 48" 
-            aria-hidden="true"
-          >
-            <path 
-              d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" 
-              strokeWidth="2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-            />
-          </svg>
-          <p className="mt-2 text-sm font-medium text-gray-900">{label}</p>
-          <p className="mt-1 text-xs text-gray-500">{description}</p>
-          {files.length > 0 && (
-            <p className="mt-1 text-xs text-blue-500">
-              {files.length} fichier{files.length > 1 ? 's' : ''} sélectionné{files.length > 1 ? 's' : ''}
-            </p>
-          )}
-          {files.length >= maxFiles && (
-            <p className="mt-1 text-xs text-yellow-500">
-              Nombre maximum de fichiers atteint ({maxFiles})
-            </p>
-          )}
+      {files.length === 0 && (
+        <div 
+          {...getRootProps()} 
+          className={`border-2 border-dashed p-8 rounded-lg text-center cursor-pointer transition-colors
+            ${isDragActive 
+              ? 'border-blue-500 bg-blue-50' 
+              : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+            }
+            ${files.length >= maxFiles ? 'opacity-50 cursor-not-allowed' : ''}
+          `}
+        >
+          <input {...getInputProps()} data-testid="file-input" />
+          <div className="text-center">
+            <svg 
+              className="mx-auto h-12 w-12 text-gray-400" 
+              stroke="currentColor" 
+              fill="none" 
+              viewBox="0 0 48 48" 
+              aria-hidden="true"
+            >
+              <path 
+                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+              />
+            </svg>
+            <p className="mt-2 text-sm font-medium text-gray-900">{label}</p>
+            <p className="mt-1 text-xs text-gray-500">{description}</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {fileRejections.length > 0 && (
         <div className="mt-2 text-sm text-red-500">
@@ -198,6 +190,19 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             </li>
           ))}
         </ul>
+      )}
+      
+      {files.length > 0 && files.length < maxFiles && (
+        <button
+          {...getRootProps()}
+          className="mt-4 flex items-center justify-center w-full py-2 px-4 border border-dashed border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+        >
+          <input {...getInputProps()} />
+          <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Ajouter un autre fichier
+        </button>
       )}
     </div>
   );
