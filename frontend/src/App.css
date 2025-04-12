@@ -1,0 +1,28 @@
+/* Styles globaux, la plupart des styles sont gérés par Tailwind CSS */
+.App {
+  text-align: center;
+}
+
+.react-pdf__Page__annotations.annotationLayer {
+  display: none; /* Masquer les annotations PDF par défaut */
+}
+
+/* Style personnalisé pour les scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}

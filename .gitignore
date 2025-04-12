@@ -1,0 +1,50 @@
+# Ignorer les fichiers Python compilés
+*.pyc
+*.pyo
+__pycache__/
+
+# Ignorer les fichiers temporaires
+*.tmp
+*.log
+*.bak
+*.swp
+*.swo
+
+# Ignorer les fichiers de configuration spécifiques à l'IDE
+.vscode/
+.idea/
+*.iml
+
+# Ignorer les fichiers générés par macOS
+.DS_Store
+
+# Ignorer les fichiers de dépendances
+node_modules/
+
+# Ignorer les fichiers de build
+build/
+dist/
+
+# Ignorer les fichiers temporaires et de cache
+*.cache
+*.temp
+
+# Ignorer les fichiers spécifiques à l'application
+backend/temp/
+backend/tmp/
+frontend/public/
+frontend/src/assets/react.svg
+
+# Ignorer les fichiers de configuration spécifiques à l'utilisateur
+.env
+.env.local
+.env.*.local
+
+# Ignorer les fichiers générés par PyInstaller
+*.spec
+
+# Ignorer les fichiers générés par Tailwind
+*.css.map
+
+venv 
+implementation.md
