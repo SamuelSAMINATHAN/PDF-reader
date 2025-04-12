@@ -122,11 +122,6 @@ const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
           ))}
         </ul>
       </nav>
-      
-      <div className="absolute bottom-0 left-0 right-0 p-4 text-xs text-gray-400 border-t border-gray-700">
-        <p>Tous les fichiers sont traités localement, en toute sécurité.</p>
-        <p className="mt-1">Aucune donnée n'est envoyée vers des serveurs externes.</p>
-      </div>
     </aside>
   );
 };

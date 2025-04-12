@@ -17,11 +17,21 @@ class Settings(BaseSettings):
     # Taille max des fichiers (en Mo)
     MAX_FILE_SIZE_MB: int = 100
     
-    # Extensions supportées
+    # Types de fichiers autorisés
     ALLOWED_EXTENSIONS = {
-        "pdf": ["pdf"],
-        "image": ["jpg", "jpeg", "png", "gif", "webp", "tiff"],
-        "office": ["doc", "docx", "xls", "xlsx", "ppt", "pptx"],
+        "pdf": [".pdf"],
+        "image": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".svg"],
+        "document": [
+            # Documents bureautiques
+            ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".rtf", ".txt", 
+            ".odt", ".ods", ".odp", ".vsd", ".vsdx",
+            # Livres électroniques
+            ".epub", ".mobi", ".djvu",
+            # Web
+            ".html", ".htm", ".xml",
+            # Autres
+            ".tex", ".md", ".dwg", ".dxf"
+        ],
     }
     
     # CORS

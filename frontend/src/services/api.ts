@@ -228,6 +228,26 @@ export const pdfService = {
   },
   
   /**
+   * Convertit divers formats de fichiers en PDF
+   * Supporte documents bureautiques, images, livres électroniques et autres formats spécialisés
+   */
+  convertToPdf: async (files: File[], outputFilename?: string) => {
+    const formData = new FormData();
+    
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+    
+    if (outputFilename) {
+      formData.append('output_filename', outputFilename);
+    }
+    
+    return apiClient.post('/convert-to-pdf', formData, {
+      responseType: 'blob',
+    });
+  },
+  
+  /**
    * Récupère les informations d'un PDF
    */
   getPdfInfo: async (file: File) => {

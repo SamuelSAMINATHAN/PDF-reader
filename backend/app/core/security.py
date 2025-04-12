@@ -7,10 +7,32 @@ from pathlib import Path
 from .config import settings
 
 
-def is_valid_file_extension(filename: str, allowed_types: list) -> bool:
-    """Vérifie que l'extension du fichier est autorisée"""
-    ext = filename.split('.')[-1].lower()
-    return ext in allowed_types
+def is_valid_file_extension(filename, allowed_extensions):
+    """
+    Vérifie si l'extension du fichier est autorisée.
+    
+    Args:
+        filename (str): Nom du fichier à vérifier
+        allowed_extensions (list): Liste des extensions autorisées
+        
+    Returns:
+        bool: True si l'extension est autorisée, False sinon
+    """
+    if not filename:
+        return False
+    
+    # Normaliser les extensions (ajouter le point si nécessaire)
+    normalized_extensions = []
+    for ext in allowed_extensions:
+        if not ext.startswith('.'):
+            normalized_extensions.append('.' + ext.lower())
+        else:
+            normalized_extensions.append(ext.lower())
+    
+    # Obtenir l'extension du fichier (avec le point)
+    ext = os.path.splitext(filename)[1].lower()
+    
+    return ext in normalized_extensions
 
 
 def generate_unique_filename(original_filename: str, prefix: str = "") -> str:
