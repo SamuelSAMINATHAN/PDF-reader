@@ -13,6 +13,7 @@ const SignPage: React.FC = () => {
   const [signaturePosition, setSignaturePosition] = useState<SignaturePosition | null>(null);
   const [isPositioning, setIsPositioning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +102,47 @@ const SignPage: React.FC = () => {
     dragStartRef.current = null;
   };
 
+  // Ajouter la possibilité de redimensionner la signature
+  const handleResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    setIsResizing(true);
+
+    // Enregistrer la position initiale du curseur
+    dragStartRef.current = {
+      x: event.clientX,
+      y: event.clientY
+    };
+  };
+
+  const handleResize = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isResizing || !signaturePosition || !pdfContainerRef.current || !dragStartRef.current) return;
+
+    const rect = pdfContainerRef.current.getBoundingClientRect();
+
+    // Calculer le changement de taille en pourcentage de la taille du conteneur
+    const deltaX = ((event.clientX - dragStartRef.current.x) / rect.width) * 100;
+    const deltaY = ((event.clientY - dragStartRef.current.y) / rect.height) * 100;
+
+    // Mettre à jour la taille de la signature
+    setSignaturePosition({
+      ...signaturePosition,
+      width: Math.max(5, signaturePosition.width + deltaX), // Largeur minimale de 5%
+      height: Math.max(5, signaturePosition.height + deltaY) // Hauteur minimale de 5%
+    });
+
+    // Mettre à jour la position de départ pour le prochain mouvement
+    dragStartRef.current = {
+      x: event.clientX,
+      y: event.clientY
+    };
+  };
+
+  const handleResizeEnd = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    setIsResizing(false);
+    dragStartRef.current = null;
+  };
+
   const handleSign = async () => {
     if (!file) {
       setError('Veuillez d\'abord sélectionner un fichier PDF.');
@@ -163,6 +205,7 @@ const SignPage: React.FC = () => {
         <p className="text-gray-600">
           Créez votre signature et positionnez-la sur un document PDF.
         </p>
+        
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -204,7 +247,7 @@ const SignPage: React.FC = () => {
               
               <PdfViewer 
                 file={file}
-                showControls={true}
+                showControls={false} // Désactiver les contrôles
                 onPageSelect={(page) => setPageNumber(page)}
                 initialPage={pageNumber}
               />
@@ -227,6 +270,13 @@ const SignPage: React.FC = () => {
                     alt="Signature" 
                     className="w-full h-full object-contain pointer-events-none"
                     draggable={false}
+                  />
+                  <div 
+                    className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 cursor-se-resize z-20"
+                    onMouseDown={handleResizeStart}
+                    onMouseMove={handleResize}
+                    onMouseUp={handleResizeEnd}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </div>
               )}
@@ -283,4 +333,4 @@ const SignPage: React.FC = () => {
   );
 };
 
-export default SignPage; 
+export default SignPage;

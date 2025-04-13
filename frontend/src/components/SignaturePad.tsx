@@ -40,26 +40,12 @@ const SignaturePad: React.FC<SignaturePadProps> = ({
 
   // Effacer le canvas
   const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    const ctx = context;
-    
-    if (!canvas || !ctx) return;
-    
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Ajouter la ligne d'aide
-    ctx.strokeStyle = '#d1d5db';
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height * 0.8);
-    ctx.lineTo(canvas.width, canvas.height * 0.8);
-    ctx.stroke();
-    
-    // Réinitialiser le style
-    ctx.strokeStyle = '#000000';
-    
-    setHasSignature(false);
-    setImportedSignature(null);
+    if (canvasRef.current) {
+      const context = canvasRef.current.getContext('2d');
+      if (context) {
+        context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    }
   };
 
   // Débuter le dessin
